@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+##
+# Keep local path in sync with remote path on server.
+# Ignore .git metadata.
+#
+usage() { echo -e "usage: watchsync [-p 22] sourcedir user@remoteHost:targetDir\n-p: Use alternate port for rsync over ssh" 1>&2; exit 1; }
+
+while getopts "p:h" opt; do
+  case "$opt" in
+    p)
+      optTrimmed=`echo -- $OPTARG`;
+      if [ -n "$optTrimmed" ]; then
+        port="$optTrimmed"
+        shift 2
+      else
+        usage
+      fi
+      case "$port" in
+        ''|*[!0-9]*)
+          usage
+          ;;
+        *)
+          secondPart="-e 'ssh -p $port' "
+          ;;
+      esac
+      ;;
+    h)
+      usage
+      shift
+      ;;
+  esac
+done
+
+secondPart=""
+
+
+if [ -z "$1$2" ]; then
+  #WAT NO DIRS?! MUCH FAIL.
+  usage
+fi
+
+sourceDir=$1
+remoteDir=$2
+firstPart="cd "${sourceDir}" && fswatch . \"date +%H:%M:%S && rsync "
+lastPart="-iruhz --exclude .git --exclude-from=.gitignore --delete . ${remoteDir}"
+
+#I know what you're thinking - there's no way he'd use eval.
+
+
+command=""
+if [ -n "$secondPart" ]; then
+  command="${firstPart}${secondPart}${lastPart}"
+else
+  command="${firstPart}${lastPart}"
+fi
+#OH SNAP
+eval command
